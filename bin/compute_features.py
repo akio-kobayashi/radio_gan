@@ -2,6 +2,7 @@ import os, sys
 import numpy as np
 import torch
 import pandas as pd
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import utils.mel_spectrogram as M
 from argparse import ArgumentParser
 import yaml
@@ -29,7 +30,7 @@ def compute_features(input_csv, output_csv, output_dir, output_speaker):
         if row['speaker'] not in speaker2id:
             speaker2id[row['speaker']] = number
             number += 1
-        if row['speaker'].stattswith('B'):
+        if row['speaker'].startswith('B'):
             hearing.append('NH')
         else:
             hearing.append('DF')
@@ -50,7 +51,7 @@ def compute_mean_var(input_csv):
     total_frames = 0
     spec_sum=0.
     spec_sum_square=0.
-    for idx, row in df:
+    for idx, row in df.iterrows():
         melspec = torch.load(row['melspec']).to(device)
         total_frames += melspec.shape[-1]
         spec_sum += torch.sum(melspec, dim=-1)
@@ -62,9 +63,9 @@ def compute_mean_var(input_csv):
     return spec_mean, torch.sqrt(spec_var + 1.e-8)
 
 def save_mean_var(mean, var, path):
-    if torch.isinstance(mean):
-        mean = mean.detach().cpu().numpy()
-        var = var.detach().cpu().numpy()
+    #if isinstance(mean):
+    mean = mean.detach().cpu().numpy()
+    var = var.detach().cpu().numpy()
 
     np.savez(path, mean=mean, var=var)
 
