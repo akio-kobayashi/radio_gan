@@ -14,7 +14,7 @@ import bin.compute_features as C
 
 class SpeechDataset(torch.utils.data.Dataset):
 
-    def __init__(self, nh_path:str, df_path:str, spk_path:str, 
+    def __init__(self, csv_path:str, spk_path:str, 
                  stat_path:str, n_frames=128, max_mask_len=25, shuffle_data=True) -> None:
         super().__init__()
 
@@ -25,13 +25,14 @@ class SpeechDataset(torch.utils.data.Dataset):
 
         self.mean, self.var = C.load_mean_var(stat_path)
 
-        self.df_nh = pd.read_csv(nh_path)
-        self.df_df = pd.read_csv(df_path)
+        self.df = pd.read_csv(csv_path)
+        self.df_nh = self.df[self.df['hearing'] == 'NH']
+        self.df_df = self.df[self.df['hearing'] == 'DF']
 
         self.data_length = max(len(self.df_nh), len(self.df_df))
         self.shuffle_data=shuffle_data
         if self.shuffle_data:
-            self.shuffle()        
+            self.shuffle()
 
         self.spk2id={}
         self.spk2id['<UNK>'] = 0

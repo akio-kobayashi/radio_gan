@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from typing import Tuple
 from einops import rearrange
 from model import Generator, Discriminator, AuxDiscriminator
+from clasifiers import SpeakerClassifier, TwoClassClassifier
 import math
 
 class CustomLRScheduler(object):
@@ -43,6 +44,13 @@ class LitGAN(pl.LightningModule):
         # 2-step adversarial loss
         self.discriminator_DF2 = Discriminator().to(self.device)
         self.discriminator_NH2 = Discriminator().to(self.device)
+
+        # speaker classifiler
+        self.speaker_classifier = SpeakerClassifier(config['num_speakers'])
+        # DF/NH classifiler
+        self.df_nh_classifiler = TwoClassClassifier()
+        self.lambda_speaker = config['lambda_speaker']
+        self.lambda_df_nh = config['lambda_df_nh']
 
     def forward(self, data:Tensor, mask:Tensor) -> Tensor:
         return self.generator_DF2NH(data, mask) # est, est_spk, ctc
@@ -134,9 +142,70 @@ class LitGAN(pl.LightningModule):
 
         return _gen_loss
 
+    def compute_speaker_logits_loss(self, real_df, fake_df, cycle_df, ident_df, 
+                       real_nh, fake_nh, cycle_nh, ident_nh, spk_df, spk_nh):
+        d = {}
+        logits_real_df = self.speaker_classifier(real_df)
+        logits_fake_df = self.speaker_classifier(fake_df)
+        logits_cycle_df = self.speaker_classifier(cycle_df)
+        logits_ident_df = self.speaker_classifier(ident_df)
+        loss_real_df = F.cross_entropy(logits_real_df, spk_df)
+        loss_fake_df = F.cross_entropy(logits_fake_df, spk_df)
+        loss_cycle_df = F.cross_entropy(logits_cycle_df, spk_df)
+        loss_ident_df = F.cross_entropy(logits_ident_df, spk_df)
+        df_speaker_loss = loss_real_df + loss_fake_df + loss_cycle_df + loss_ident_df
+        d['deaf_speaker_loss'] = df_speaker_loss
+
+        logits_real_nh = self.speaker_classifier(real_nh)
+        logits_fake_nh = self.speaker_classifier(fake_nh)
+        logits_cycle_nh = self.speaker_classifier(cycle_nh)
+        logits_ident_nh = self.speaker_classifier(ident_nh)
+        loss_real_nh = F.cross_entropy(logits_real_nh, spk_nh)
+        loss_fake_nh = F.cross_entropy(logits_fake_nh, spk_nh)
+        loss_cycle_nh = F.cross_entropy(logits_cycle_nh, spk_nh)
+        loss_ident_nh = F.cross_entropy(logits_ident_nh, spk_nh)
+        nh_speaker_loss = loss_real_nh + loss_fake_nh + loss_cycle_nh + loss_ident_nh
+        d['normal_spaker_loss'] = nh_speaker_loss
+
+        _loss = df_speaker_loss + nh_speaker_loss
+        d['speaker_loss'] = _loss
+        self.log_dict(d)
+
+        return _loss
+
+    def compute_df_nh_logits_loss(self, real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, spk_df, spk_nh):
+        d = {}
+        logits_real_df = self.df_nh_classifier(real_df)
+        logits_fake_df = self.df_nh_classifier(fake_df)
+        logits_cycle_df = self.df_nh_classifier(cycle_df)
+        logits_ident_df = self.df_nh_classifier(ident_df)
+        loss_real_df = F.cross_entropy(logits_real_df, torch.fulllike(spk_df, 1))
+        loss_fake_df = F.cross_entropy(logits_fake_df, torch.fulllike(spk_df, 1))
+        loss_cycle_df = F.cross_entropy(logits_cycle_df, torch.fulllike(spk_df, 1))
+        loss_ident_df = F.cross_entropy(logits_ident_df, torch.fulllike(spk_df, 1))
+        df_loss = loss_real_df + loss_fake_df + loss_cycle_df + loss_ident_df
+        d['deaf_loss'] = df_loss
+
+        logits_real_nh = self.df_nh_classifier(real_nh)
+        logits_fake_nh = self.df_nh_classifier(fake_nh)
+        logits_cycle_nh = self.df_nh_classifier(cycle_nh)
+        logits_ident_nh = self.df_nh_classifier(ident_nh)
+        loss_real_nh = F.cross_entropy(logits_real_nh, torch.fulllike(spk_nh, 0))
+        loss_fake_nh = F.cross_entropy(logits_fake_nh, torch.fulllike(spk_nh, 0))
+        loss_cycle_nh = F.cross_entropy(logits_cycle_nh, torch.fulllike(spk_nh, 0))
+        loss_ident_nh = F.cross_entropy(logits_ident_nh, torch.fulllike(spk_nh, 0))
+        nh_loss = loss_real_nh + loss_fake_nh + loss_cycle_nh + loss_ident_nh
+        d['normal_loss'] = nh_loss
+
+        _loss = df_loss + nh_loss
+        d['df_nh_loss'] = _loss
+        self.log_dict(d)
+
+        return _loss
+        
     def training_step(self, batch, batch_idx:int) -> Tensor:
         _loss = 0.
-        nh_data, nh_mask, nh_spk, df_data, df_mask, df_spk = batch
+        real_nh, mask_nh, nh_spk, real_df, mask_df, df_spk = batch
 
         opt_g, opt_d = self.optimizers()
 
@@ -144,12 +213,12 @@ class LitGAN(pl.LightningModule):
         self.toggle_optimizers(opt_g)
         self.toggle_training_mode(generator=True)
 
-        fake_nh = self.forward(df_data, df_mask)
+        fake_nh = self.forward(real_df, mask_df)
         cycle_df = self.generator_NH2DF(fake_nh, torch.ones_like(fake_nh))
-        fake_df = self.generator_NH2DF(nh_data, nh_mask)
+        fake_df = self.generator_NH2DF(real_nh, mask_nh)
         cycle_nh = self.generator_DF2NH(fake_df, torch.ones_like(fake_df))
-        ident_df = self.generator_NH2DF(df_data, torch.ones_like(df_data))
-        ident_nh = self.generator_DF2NH(nh_data, torch.ones_like(nh_data))
+        ident_df = self.generator_NH2DF(real_df, torch.ones_like(real_df))
+        ident_nh = self.generator_DF2NH(real_nh, torch.ones_like(real_nh))
 
         '''
             data: real_df, real_nh, fake_df, fake_nh, cycle_df, cycle_nh
@@ -166,8 +235,21 @@ class LitGAN(pl.LightningModule):
         d_fake_cycle_df = self.discriminator_DF2(cycle_df)
         d_fake_cycle_nh = self.discriminator_NH2(cycle_nh)
 
+        '''
+            speaker loss
+        '''
+        speaker_loss = self.compute_speaker_logits_loss(real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, df_spk, nh_spk) 
+
+        '''
+            DF/NH loss
+            data: real_df, real_nh, fake_df, fake_nh, cycle_df, cycle_dh
+            classified to DF: real_df, cycle_df, fake_df, ident_df
+            classified to NH: real_nh, fake_nh, cycle_nh, ident_nh
+        '''
+        df_nh_loss = self.compute_df_nh_logits_loss(real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, df_spk, nh_spk)
+
         gen_loss = self.compute_generator_loss(
-            df_data, nh_data, cycle_df, cycle_nh, 
+            real_df, real_nh, cycle_df, cycle_nh, 
             ident_df, ident_nh, d_fake_df, d_fake_nh,
             d_fake_cycle_df, d_fake_cycle_nh
         )
@@ -180,20 +262,19 @@ class LitGAN(pl.LightningModule):
         self.toggle_training_mode(generator=False)
         self.toggle_optimizers(opt_d)
 
-        d_real_DF = self.discriminator_DF(df_data)
-        d_real_NH = self.discriminator_NH(nh_data)
-        d_real_DF2 = self.discriminator_DF2(df_data)
-        d_real_NH2 = self.discriminator_NH2(nh_data)
-        generated_DF = self.generator_NH2DF(nh_data, nh_mask)
+        d_real_DF = self.discriminator_DF(real_df)
+        d_real_NH = self.discriminator_NH(real_nh)
+        d_real_DF2 = self.discriminator_DF2(real_df)
+        d_real_NH2 = self.discriminator_NH2(real_nh)
+        generated_DF = self.generator_NH2DF(real_nh, mask_nh)
         d_fake_DF = self.discriminator_DF(generated_DF)
         
         # for 2-step adversarial loss DF->NH
         cycled_NH = self.generator_DF2NH(generated_DF, torch.ones_like(generated_DF))
         d_cycled_NH = self.discriminator_NH2(cycled_NH)
 
-        generated_NH = self.generator_DF2NH(df_data, df_mask)
+        generated_NH = self.generator_DF2NH(real_df, mask_df)
         d_fake_NH = self.discriminator_NH(generated_NH)
-
         # for 2-step adversarial loss NH->DF
         cycled_DF = self.generator_NH2DF(generated_NH, torch.ones_like(generated_NH))
         d_cycled_DF = self.discriminator_DF2(cycled_DF)

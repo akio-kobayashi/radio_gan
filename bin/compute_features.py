@@ -3,11 +3,21 @@ import numpy as np
 import torch
 import pandas as pd
 import utils.mel_spectrogram as M
+from argparse import ArgumentParser
+import yaml
+import warnings
+warnings.filterwarnings('ignore')
 
-def compute_features(input_csv, output_dir, output_csv):
+'''
+    input_csv format:  key, source, speaker, 
+    output_csv format: key, source, melspec, speaker, hearing
+'''
+def compute_features(input_csv, output_csv, output_dir, output_speaker):
     keys, wavs, specs, speakers, hearing = [], [], [], [], []
 
-    df = pd.read_csv(csv)
+    speaker2id={}
+    number = 1 # start from 1 because <UNK> should be assigned to 0
+    df = pd.read_csv(input_csv)
     for idx, row in df.iterrows():
         melspec = M.get_mel_spectrogram(row['source'])
         output_path = os.path.join(output_dir, row['key']) + '.pt'
@@ -16,16 +26,22 @@ def compute_features(input_csv, output_dir, output_csv):
         wavs.append(row['source'])
         specs.append(output_path)
         speakers.append(row['speaker'])
-        if row['speaker'].stattswith('D'):
-            hearing.append('DF')
-        else:
+        if row['speaker'] not in speaker2id:
+            speaker2id[row['speaker']] = number
+            number += 1
+        if row['speaker'].stattswith('B'):
             hearing.append('NH')
+        else:
+            hearing.append('DF')
     
     out_df = pd.DataFrame(index=None)
     out_df['key'], out_df['source'] = keys, wavs
     out_df['melspec'], out_df['speaker'], out_df['hearing'] = specs, speakers, hearing
 
     out_df.to_csv(output_csv, index=False)
+    with open(output_speaker, 'w') as f:
+        for speaker, id in speaker2id.items():
+            f.write(f'{speaker} {id}\n')
 
 def compute_mean_var(input_csv):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
@@ -70,3 +86,17 @@ def remove_short_long_features(df, min_frames=200, max_frames=2500):
         if spec.shape[-1] < max_frames:
             df.drop(index=idx, inplace=True)
             continue
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--input_csv', type=str, required=True)
+    parser.add_argument('--output_csv', type=str, required=True)
+    parser.add_argument('--output_dir', type=str, default='./')
+    parser.add_argument('--output_stats', type=str, default='stats.npz')
+    parser.add_argument('--output_speaker', type=str)
+    args=parser.parse_args()
+       
+    compute_features(args.input_csv, args.output_csv, args.output_dir, args.output_speaker)
+    mean, var = compute_mean_var(args.output_csv)
+    save_mean_var(mean, var, args.output_stats)
+    
