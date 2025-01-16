@@ -21,7 +21,7 @@ for path in glob.glob(os.path.join(args.rootdir, '**/*.wav'), recursive=True):
         continue
     checked[file] = 1
     speaker = os.path.basename(os.path.dirname(path))
-    key = os.path.splitext(file)
+    key = os.path.splitext(file)[0]
     path = os.path.abspath(path)
 
     keys.append(key)
