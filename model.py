@@ -5,7 +5,6 @@ Inspired by https://github.com/jackaduma/CycleGAN-VC2
 """
 
 import numpy as np
-
 import torch
 import torch.nn as nn
 
@@ -16,7 +15,7 @@ class GLU(nn.Module):
     """
 
     def __init__(self):
-        super(GLU, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         return x * torch.sigmoid(x)
@@ -28,7 +27,7 @@ class PixelShuffle(nn.Module):
     """
 
     def __init__(self, upscale_factor):
-        super(PixelShuffle, self).__init__()
+        super().__init__()
         self.upscale_factor = upscale_factor
 
     def forward(self, x):
@@ -43,7 +42,7 @@ class ResidualLayer(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
-        super(ResidualLayer, self).__init__()
+        super().__init__()
 
         self.conv1d_layer = nn.Sequential(nn.Conv1d(in_channels=in_channels,
                                                     out_channels=out_channels,
@@ -82,7 +81,7 @@ class DownSampleGenerator(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
-        super(DownSampleGenerator, self).__init__()
+        super().__init__()
 
         self.convLayer = nn.Sequential(nn.Conv2d(in_channels=in_channels,
                                                  out_channels=out_channels,
@@ -109,7 +108,7 @@ class Generator(nn.Module):
     """
 
     def __init__(self, input_shape=(80, 64), residual_in_channels=256):
-        super(Generator, self).__init__()
+        super().__init__()
         Cx, Tx = input_shape
         self.flattened_channels = (Cx // 4) * residual_in_channels
 
@@ -286,7 +285,7 @@ class Discriminator(nn.Module):
     """
 
     def __init__(self, input_shape=(80, 64), residual_in_channels=256):
-        super(Discriminator, self).__init__()
+        super().__init__()
 
         self.convLayer1 = nn.Sequential(nn.Conv2d(in_channels=1,
                                                   out_channels=residual_in_channels // 2,

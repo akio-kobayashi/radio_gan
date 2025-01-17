@@ -15,11 +15,11 @@ def main(args, config:dict):
 
     model = LitGAN(config)
     
-       
-    train_dataset = SpeechDataset(nh_path=config['train_normal_hearing'], 
-                                  df_path=config['train_deaf'], 
-                                  spk_path=config['speakers'], 
-                                  stat_path=config['stats']
+
+    # csv_path, spk_path, stat_path:str, n_frames, max_mask_len, shuffle_data=True       
+    train_dataset = SpeechDataset(csv_path=config['csv_path'], 
+                                  spk_path=config['spk_path'], 
+                                  stat_path=config['stat_path'],
                                   n_frames=config['num_frames'], 
                                   max_mask_len=config['max_mask_len'], 
                                   shuffle_data=True
@@ -30,15 +30,14 @@ def main(args, config:dict):
                                    shuffle=False, 
                                    collate_fn=lambda x: speech_dataset.data_processing
     )
-    valid_dataset = SpeechDataset(nh_path=config['valid_normal_hearing'], 
-                                  df_path=config['valid_deaf'], 
-                                  spk_path=config['speakers'], 
-                                  stat_path=config['stats'],
-                                  n_frames=config['num_frames'], 
-                                  max_mask_len=config['max_mask_len'], 
-                                  shuffle_data=True
-    )
 
+    valid_dataset = SpeechDataset(csv_path=config['csv_path'], 
+                                  spk_path=config['spk_path'], 
+                                  stat_path=config['stat_path'],
+                                  n_frames=config['num_frames'], 
+                                  max_mask_len=0, 
+                                  shuffle_data=False
+    )
     valid_loader = data.DataLoader(dataset=valid_dataset,
                                    **config['process'],
                                    pin_memory=True,
@@ -46,10 +45,9 @@ def main(args, config:dict):
                                    collate_fn=lambda x: speech_dataset.data_processing
     )
 
-    callbacks=[]
-    #callbacks = [
-    #    pl.callbacks.ModelCheckpoint( **config['checkpoint'])
-    #]
+    callbacks = [
+        pl.callbacks.ModelCheckpoint( **config['checkpoint'])
+    ]
     logger = TensorBoardLogger(**config['logger'])
 
     trainer = pl.Trainer( callbacks=callbacks,
@@ -58,8 +56,7 @@ def main(args, config:dict):
                           check_val_every_n_epoch=10,
                           **config['trainer'] )
     trainer.fit(model=model, ckpt_path=args.checkpoint, 
-                train_dataloaders=train_loader,
-                val_dataloaders=valid_loader)
+                train_dataloaders=train_loader, valid_dataloader=valid_loader)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
