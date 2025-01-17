@@ -29,7 +29,7 @@ def main(args, config:dict):
                                    **config['process'],
                                    pin_memory=True,
                                    shuffle=False, 
-                                   collate_fn=lambda x: speech_dataset.data_processing
+                                   collate_fn=speech_dataset.data_processing
     )
 
     valid_dataset = SpeechDataset(csv_path=config['valid_path'], 
@@ -43,7 +43,7 @@ def main(args, config:dict):
                                    **config['process'],
                                    pin_memory=True,
                                    shuffle=False, 
-                                   collate_fn=lambda x: speech_dataset.data_processing
+                                   collate_fn=speech_dataset.data_processing
     )
 
     callbacks = [
@@ -59,7 +59,7 @@ def main(args, config:dict):
                 train_dataloaders=train_loader, val_dataloaders=valid_loader)
 
 if __name__ == '__main__':
-    mp.set_start_method('spawn', force=True)
+    torch.multiprocessing.set_start_method('spawn', force=True)
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
     parser.add_argument('--checkpoint', type=str, default=None)
