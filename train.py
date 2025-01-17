@@ -2,7 +2,7 @@ import torch
 import pytorch_lightning as pl
 from lightning.pytorch.loggers import TensorBoardLogger
 import torch.utils.data as data
-from lite.solver import LitGAN
+from solver import LitGAN
 import torch.utils.data as dat
 from speech_dataset import SpeechDataset
 import speech_dataset
