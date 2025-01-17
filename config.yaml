@@ -8,10 +8,12 @@ epochs: 50 &shared_epochs
 decay_after: 1e4
 start_epoch: 1
 n_samples: 10000 &shared_n_samples
+
 # process
 process:
-  batch_size: &shared_batch_size
+  batch_size: *shared_batch_size
   num_workers: 1
+
 # trainer
 trainer:
   accelerator: 'auto'
@@ -19,12 +21,14 @@ trainer:
   max_epochs: *shared_epochs
   precision: '16-mixed'
   profiler: 'simple'
-  gradient_clip_val: 5.
+  gradient_clip_val: 5.0
+
 # logger
 logger:
   save_dir: './model'
   version: 1
   name: 'lightning_logs'
+
 # checkpoint
 checkpoint:
   monitor: 'valid_gen_loss'
@@ -33,26 +37,36 @@ checkpoint:
   save_top_k: 1
   mode: 'min'
   every_n_epochs: 100
+
+# generator optimizer
 gen_optimizer:
   lr: 2e-4 &shared_gen_lr
   betas: &shared_betas
     - 0.5
     - 0.999
   weight_decay: 1e-6 &shared_weight_decay
+
+# generator scheduler
 gen_scheduler:
   n_samples: *shared_n_samples
   lr: *shared_gen_lr
   epochs: *shared_epochs
   mini_batch_size: *shared_batch_size
+
+# discriminator optimizer
 dsc_optimizer:
   lr: 1e-4 &shared_dsc_lr
   betas: *shared_betas
   weight_decay: *shared_weight_decay
+
+# discriminator scheduler
 dsc_scheduler:
   n_samples: *shared_n_samples
   lr: *shared_dsc_lr
   epochs: *shared_epochs
   mini_batch_size: *shared_batch_size
+
+# additional parameters
 identity_loss_lambda: 5
 cycle_loss_lambda: 10
 num_frames: 256 &shared_num_frames
@@ -62,8 +76,8 @@ input_shape:
   - *shared_mel_dim
 max_mask_len: 32
 residual_in_channels: 256
-# aux models
-num_speakers: 256
-lambda_speaker: .1
-lambda_df_nh: .1
 
+# auxiliary models
+num_speakers: 256
+lambda_speaker: 0.1
+lambda_df_nh: 0.1
