@@ -16,7 +16,7 @@ class CustomLRScheduler(object):
         self.lr = lr
         self.epochs = epochs
         self.mini_batch_size = mini_batch_size
-        self.lr_decay = self.lr / float(self.num_epochs * (self.n_samples // self.mini_batch_size))
+        self.lr_decay = self.lr / float(self.epochs * (self.n_samples // self.mini_batch_size))
 
     def step(self):
         self.lr = max(0., self.lr - self.lr_decay)
@@ -29,7 +29,7 @@ class CustomLRScheduler(object):
 class LitGAN(pl.LightningModule):
     def __init__(self, config:dict) -> None:        
         super().__init__()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+        #self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
         self.config = config
 
         self.automatic_optimization = False
@@ -37,26 +37,26 @@ class LitGAN(pl.LightningModule):
         # input_shape=(mel_dim, num_frames), residual_in_channels
         self.generator_DF2NH = Generator(input_shape=config['input_shape'], 
                                          residual_in_channels=config['residual_in_channels']).to(self.device)
-        self.generator_NH2DF = Generator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.generator_NH2DF = Generator(input_shape=config['input_shape'],
                                          residual_in_channels=config['residual_in_channels']).to(self.device)
         # 
         self.discriminator_DF = Discriminator(input_shape=config['input_shape'],
                                               residual_in_channels=config['residual_in_channels']).to(self.device)
-        self.discriminator_NH = Discriminator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.discriminator_NH = Discriminator(input_shape=config['input_shape'],
                                               residual_in_channels=config['residual_in_channels']).to(self.device)
 
         # 2-step adversarial loss
-        self.discriminator_DF2 = Discriminator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.discriminator_DF2 = Discriminator(input_shape=config['input_shape'],
                                               residual_in_channels=config['residual_in_channels']).to(self.device)
-        self.discriminator_NH2 = Discriminator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.discriminator_NH2 = Discriminator(input_shape=config['input_shape'],
                                               residual_in_channels=config['residual_in_channels']).to(self.device)
 
         # speaker classifiler
-        self.speaker_classifier = AuxDiscriminator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.speaker_classifier = AuxDiscriminator(input_shape=config['input_shape'],
                                                    residual_in_channels=config['residual_in_channels'], 
                                                    output_class=config['num_speakers'])
         # DF/NH classifiler
-        self.df_nh_classifiler = AuxDiscriminator(input_shape=(config['mel_dim'], config['num_frames']),
+        self.df_nh_classifiler = AuxDiscriminator(input_shape=config['input_shape'],
                                                   residual_in_channels=config['residual_in_channels'], 
                                                   output_class=2)
         self.lambda_speaker = config['lambda_speaker']

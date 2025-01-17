@@ -52,11 +52,10 @@ def main(args, config:dict):
 
     trainer = pl.Trainer( callbacks=callbacks,
                           logger=logger,
-                          devices=args.gpus,
                           check_val_every_n_epoch=10,
                           **config['trainer'] )
     trainer.fit(model=model, ckpt_path=args.checkpoint, 
-                train_dataloaders=train_loader, valid_dataloader=valid_loader)
+                train_dataloaders=train_loader, val_dataloaders=valid_loader)
 
 if __name__ == '__main__':
     parser = ArgumentParser()

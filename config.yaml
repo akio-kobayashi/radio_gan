@@ -11,17 +11,17 @@ n_samples: 10000 &shared_n_samples
 
 # process
 process:
-  batch_size: *shared_batch_size
+  batch_size: 1
   num_workers: 1
 
 # trainer
 trainer:
   accelerator: 'auto'
-  accumulate_grad_batches: 5
-  max_epochs: *shared_epochs
+#  accumulate_grad_batches: 5
+  max_epochs: 50
   precision: '16-mixed'
   profiler: 'simple'
-  gradient_clip_val: 5.0
+#  gradient_clip_val: 5.0
 
 # logger
 logger:
@@ -40,40 +40,42 @@ checkpoint:
 
 # generator optimizer
 gen_optimizer:
-  lr: 2e-4 &shared_gen_lr
-  betas: &shared_betas
+  lr: 2.e-4
+  betas:
     - 0.5
     - 0.999
-  weight_decay: 1e-6 &shared_weight_decay
-
+  weight_decay: 1.e-6
+  
 # generator scheduler
 gen_scheduler:
-  n_samples: *shared_n_samples
-  lr: *shared_gen_lr
-  epochs: *shared_epochs
-  mini_batch_size: *shared_batch_size
+  n_samples: 10000
+  lr: 2.e-4
+  epochs: 50
+  mini_batch_size: 1
 
 # discriminator optimizer
 dsc_optimizer:
-  lr: 1e-4 &shared_dsc_lr
-  betas: *shared_betas
-  weight_decay: *shared_weight_decay
+  lr: 1.e-4
+  betas:
+    - 0.5
+    - 0.999
+  weight_decay: 1.e-6
 
 # discriminator scheduler
 dsc_scheduler:
-  n_samples: *shared_n_samples
-  lr: *shared_dsc_lr
-  epochs: *shared_epochs
-  mini_batch_size: *shared_batch_size
+  n_samples:  10000
+  lr: 1.e-4
+  epochs: 50
+  mini_batch_size: 50
 
 # additional parameters
 identity_loss_lambda: 5
 cycle_loss_lambda: 10
-num_frames: 256 &shared_num_frames
-mel_dim: 80 &shared_mel_dim
+num_frames: 256
+mel_dim: 80
 input_shape:
-  - *shared_num_frames
-  - *shared_mel_dim
+  - 80
+  - 256
 max_mask_len: 32
 residual_in_channels: 256
 
