@@ -27,7 +27,7 @@ def main(args, config:dict):
     )
     train_loader = data.DataLoader(dataset=train_dataset,
                                    **config['process'],
-                                   pin_memory=True,
+                                   pin_memory=False,
                                    shuffle=False, 
                                    collate_fn=speech_dataset.data_processing
     )
@@ -41,7 +41,7 @@ def main(args, config:dict):
     )
     valid_loader = data.DataLoader(dataset=valid_dataset,
                                    **config['process'],
-                                   pin_memory=True,
+                                   pin_memory=False,
                                    shuffle=False, 
                                    collate_fn=speech_dataset.data_processing
     )

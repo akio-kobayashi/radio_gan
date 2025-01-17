@@ -355,11 +355,20 @@ class AuxDiscriminator(Discriminator):
 
     def forward(self, x):
         x = x.unsqueeze(1)
+        print(x.shape)
         conv_layer_1 = self.convLayer1(x)
+        print(conv_layer_1.shape)
         downsample1 = self.downSample1(conv_layer_1)
+        print(downsample1.shape)
         downsample2 = self.downSample2(downsample1)
+        print(downsample2.shape)
         downsample3 = self.downSample3(downsample2)  # (B, 1, F, T)
-        output = torch.mean(torch.squeeze(downsample3), dim=-1) # (B F)
+        print(downsample3.shape)
+        if x.shape[0] > 1:
+            output = torch.mean(torch.squeeze(downsample3), dim=-1) # (B F)
+        else:
+            output = torch.mean(downsample3, dim=-1)
+        print(output.shape)
         output = self.feedforward(output)
 
 if __name__ == '__main__':

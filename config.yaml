@@ -12,7 +12,7 @@ n_samples: 10000 &shared_n_samples
 # process
 process:
   batch_size: 1
-  num_workers: 1
+  num_workers: 0
 
 # trainer
 trainer:
@@ -80,6 +80,6 @@ max_mask_len: 32
 residual_in_channels: 256
 
 # auxiliary models
-num_speakers: 256
+num_speakers: 145
 lambda_speaker: 0.1
 lambda_df_nh: 0.1

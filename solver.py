@@ -73,7 +73,9 @@ class LitGAN(pl.LightningModule):
                                                   output_class=2)
         self.lambda_speaker = config['lambda_speaker']
         self.lambda_df_nh = config['lambda_df_nh']
-
+        self.cycle_loss_lambda = config['cycle_loss_lambda']
+        self.identity_loss_lambda = config['identity_loss_lambda']
+        
     def forward(self, data:Tensor, mask:Tensor) -> Tensor:
         return self.generator_DF2NH(data, mask) # est, est_spk, ctc
 

@@ -24,7 +24,8 @@ class SpeechDataset(torch.utils.data.Dataset):
         self.max_mask_len = max_mask_len
 
         self.mean, self.var = C.load_mean_var(stat_path)
-
+        self.mean = rearrange(self.mean, ' b (f c) -> b f c', c=1)
+        self.var = rearrange(self.var, ' b (f c) -> b f c', c=1)
         self.df = pd.read_csv(csv_path)
         self.df_nh = self.df[self.df['hearing'] == 'NH']
         self.df_df = self.df[self.df['hearing'] == 'DF']
@@ -59,16 +60,18 @@ class SpeechDataset(torch.utils.data.Dataset):
         start = np.random.randint(total_frames - self.n_frames + 1)
         end = start + self.n_frames
 
-        mask_size = np.random.randint(0, self.max_mask_len)
-        assert self.n_frames > mask_size
-        mask_start = np.random.randint(0, self.n_frames - mask_size)
-
+        mask_size = mask_start = 0
+        if self.max_mask_len > 0:
+            mask_size = np.random.randint(0, self.max_mask_len)
+            assert self.n_frames > mask_size
+            mask_start = np.random.randint(0, self.n_frames - mask_size)
+            
         return start, end, mask_start, mask_size
     
     def prepare_data(self, data):
         start, end, mask_start, mask_size = self.get_range(data)
         ranged = data[...,start:end]
-        mask = np.ones_like(data)
+        mask = np.ones_like(ranged.cpu().numpy())
         mask[..., mask_start:mask_start+mask_size] =0.
 
         return ranged, torch.from_numpy(mask).to(self.device)
@@ -77,12 +80,12 @@ class SpeechDataset(torch.utils.data.Dataset):
         row_nh = self.df_nh.iloc[idx]
         row_df = self.df_df.iloc[idx]
 
-        nh_mel, _ = torch.load(row_nh['melspec'])
+        nh_mel = torch.load(row_nh['melspec'])
         nh_mel = (nh_mel.to(self.device) - self.mean)/self.var
         nh_mel_data, nh_mask = self.prepare_data(nh_mel)
         nh_speaker = self.spk2id[row_nh['speaker']]
 
-        df_mel, _ = torch.load(row_df['melspec'])
+        df_mel = torch.load(row_df['melspec'])
         df_mel = (df_mel.to(self.device) - self.mean)/self.var
         df_mel_data, df_mask = self.prepare_data(df_mel)
         df_speaker = self.spk2id[row_df['speaker']]
@@ -107,11 +110,14 @@ def data_processing(data):
     nh_spk = torch.from_numpy(np.array(nh_spk)).to(device)
     df_spk = torch.from_numpy(np.array(df_spk)).to(device)
 
+    nh_data = nn.utils.rnn.pad_sequence(nh_data, batch_first=True)
+    nh_mask = nn.utils.rnn.pad_sequence(nh_mask, batch_first=True)
+    df_data = nn.utils.rnn.pad_sequence(df_data, batch_first=True)
+    df_mask = nn.utils.rnn.pad_sequence(df_mask, batch_first=True)
     nh_data = nh_data.squeeze()
     nh_mask = nh_mask.squeeze()
     df_data = df_data.squeeze()
     df_mask = df_mask.squeeze()
-
     if nh_data.dim() < 3:
         nh_data = nh_data.unsqueeze(0)
         nh_mask = nh_mask.unsqueeze(0)
