@@ -17,7 +17,7 @@ def main(args, config:dict):
     
 
     # csv_path, spk_path, stat_path:str, n_frames, max_mask_len, shuffle_data=True       
-    train_dataset = SpeechDataset(csv_path=config['csv_path'], 
+    train_dataset = SpeechDataset(csv_path=config['train_path'], 
                                   spk_path=config['spk_path'], 
                                   stat_path=config['stat_path'],
                                   n_frames=config['num_frames'], 
@@ -31,7 +31,7 @@ def main(args, config:dict):
                                    collate_fn=lambda x: speech_dataset.data_processing
     )
 
-    valid_dataset = SpeechDataset(csv_path=config['csv_path'], 
+    valid_dataset = SpeechDataset(csv_path=config['valid_path'], 
                                   spk_path=config['spk_path'], 
                                   stat_path=config['stat_path'],
                                   n_frames=config['num_frames'], 

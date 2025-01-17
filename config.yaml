@@ -1,5 +1,6 @@
 # data
-csv_path: ./melspec.csv
+train_path: ./train.csv
+valid_path: ./valid.csv
 spk_path: ./speakers.txt
 stat_path: ./stats.npz
 batch_size: 1 &shared_batch_size
