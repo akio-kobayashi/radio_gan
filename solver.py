@@ -23,6 +23,18 @@ class CustomLRScheduler(object):
         for param_groups in self.optimizer.param_groups:
             param_groups['lr'] = self.lr
 
+    def state_dict(self):
+        return {
+            'current_step': self.current_step,
+            'lr': self.lr,
+        }
+
+    def load_state_dict(self, state_dict):
+        self.current_step = state_dict['current_step']
+        self.lr = state_dict['lr']
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = self.lr
+            
 '''
  PyTorch Lightning 用 solver
 '''
