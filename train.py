@@ -4,6 +4,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 import torch.utils.data as data
 from solver import LitGAN
 import torch.utils.data as dat
+import torch.multiprocessing as mp
 from speech_dataset import SpeechDataset
 import speech_dataset
 from argparse import ArgumentParser
@@ -58,6 +59,7 @@ def main(args, config:dict):
                 train_dataloaders=train_loader, val_dataloaders=valid_loader)
 
 if __name__ == '__main__':
+    mp.set_start_method('spawn', force=True)
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
     parser.add_argument('--checkpoint', type=str, default=None)
