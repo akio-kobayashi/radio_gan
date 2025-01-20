@@ -50,10 +50,11 @@ class SpeechDataset(torch.utils.data.Dataset):
     def shuffle(self):
         if self.shuffle_data:
             replace=True if len(self.df_nh) < self.data_length else False       
-            self.df_nh = self.df_nh.sample(n=self.data_length, replace=replace, ignore_index=True).reset_(drop=True)
+            self.df_nh = self.df_nh.sample(n=self.data_length, replace=replace, ignore_index=True).reset_index(drop=True)
             replace=True if len(self.df_df) < self.data_length else False       
             self.df_df = self.df_df.sample(n=self.data_length, replace=replace, ignore_index=True).reset_index(drop=True)
-
+            assert len(self.df_nh) == len(self.df_df)
+            
     def get_range(self, melspec):
         total_frames = melspec.shape[-1]
         #assert total_frames >= self.n_frames

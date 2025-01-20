@@ -28,7 +28,7 @@ def main(args, config:dict):
     train_loader = data.DataLoader(dataset=train_dataset,
                                    **config['process'],
                                    pin_memory=False,
-                                   shuffle=False, 
+                                   shuffle=True, 
                                    collate_fn=speech_dataset.data_processing
     )
 
@@ -37,12 +37,12 @@ def main(args, config:dict):
                                   stat_path=config['stat_path'],
                                   n_frames=config['num_frames'], 
                                   max_mask_len=0, 
-                                  shuffle_data=False
+                                  shuffle_data=True
     )
     valid_loader = data.DataLoader(dataset=valid_dataset,
                                    **config['process'],
                                    pin_memory=False,
-                                   shuffle=False, 
+                                   shuffle=True, 
                                    collate_fn=speech_dataset.data_processing
     )
 
