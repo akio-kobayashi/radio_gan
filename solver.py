@@ -17,12 +17,14 @@ class CustomLRScheduler(object):
         self.epochs = epochs
         self.mini_batch_size = mini_batch_size
         self.lr_decay = self.lr / float(self.epochs * (self.n_samples // self.mini_batch_size))
-
+        self.current_step = 0
+        
     def step(self):
         self.lr = max(0., self.lr - self.lr_decay)
         for param_groups in self.optimizer.param_groups:
             param_groups['lr'] = self.lr
-
+        self.current_step += 1
+        
     def state_dict(self):
         return {
             'current_step': self.current_step,
@@ -247,7 +249,8 @@ class LitGAN(pl.LightningModule):
 
         return _loss
 
-    def compute_df_nh_logits_loss(self, real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, spk_df, spk_nh, valid=False):
+    def compute_df_nh_logits_loss(self, real_df, fake_df, cycle_df, ident_df,
+                                  real_nh, fake_nh, cycle_nh, ident_nh, spk_df, spk_nh, valid=False):
         d = {}
         logits_real_df = self.df_nh_classifier(real_df)
         logits_fake_df = self.df_nh_classifier(fake_df)
@@ -321,7 +324,9 @@ class LitGAN(pl.LightningModule):
         '''
             speaker loss
         '''
-        speaker_loss = self.compute_speaker_logits_loss(real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, df_spk, nh_spk, valid=False) 
+        speaker_loss = self.compute_speaker_logits_loss(real_df, fake_df, cycle_df, ident_df,
+                                                        real_nh, fake_nh, cycle_nh, ident_nh,
+                                                        df_spk, nh_spk, valid=False) 
 
         '''
             DF/NH loss
@@ -329,7 +334,9 @@ class LitGAN(pl.LightningModule):
             classified to DF: real_df, cycle_df, fake_df, ident_df
             classified to NH: real_nh, fake_nh, cycle_nh, ident_nh
         '''
-        df_nh_loss = self.compute_df_nh_logits_loss(real_df, fake_df, cycle_df, ident_df, real_nh, fake_nh, cycle_nh, ident_nh, df_spk, nh_spk, valid=False)
+        df_nh_loss = self.compute_df_nh_logits_loss(real_df, fake_df, cycle_df, ident_df,
+                                                    real_nh, fake_nh, cycle_nh, ident_nh,
+                                                    df_spk, nh_spk, valid=False)
 
         gen_loss = self.compute_generator_loss(
             real_df, real_nh, cycle_df, cycle_nh, 
@@ -418,7 +425,7 @@ class LitGAN(pl.LightningModule):
             gen_loss = self.compute_generator_loss(
                 real_df, real_nh, cycle_df, cycle_nh,
                 ident_df, ident_nh, d_fake_df, d_fake_nh,
-                d_fake_cycle_df, d_fake_cycle_nh
+                d_fake_cycle_df, d_fake_cycle_nh, valid=True
             )
 
             # Compute speaker and DF/NH classification losses
@@ -451,7 +458,7 @@ class LitGAN(pl.LightningModule):
 
             dsc_loss = self.compute_discriminator_loss(
                 d_real_DF, d_fake_DF, d_cycled_DF, d_real_DF2,
-                d_real_NH, d_fake_NH, d_cycled_NH, d_real_NH2
+                d_real_NH, d_fake_NH, d_cycled_NH, d_real_NH2, valid=True
             )
 
         # Return losses for further analysis
