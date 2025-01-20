@@ -7,7 +7,7 @@ Inspired by https://github.com/jackaduma/CycleGAN-VC2
 import numpy as np
 import torch
 import torch.nn as nn
-
+from einops import rearrange
 
 class GLU(nn.Module):
     """Custom implementation of GLU since the paper assumes GLU won't reduce
@@ -351,26 +351,28 @@ class Discriminator(nn.Module):
 class AuxDiscriminator(Discriminator):
     def __init__(self, input_shape=(80, 64), residual_in_channels=256, output_class=256):
         super().__init__(input_shape, residual_in_channels)
-        self.feedforward = nn.Linear(input_shape[0], output_class)
+        self.feedforward = nn.Linear((input_shape[0]//8)*residual_in_channels*4, output_class)
 
     def forward(self, x):
         x = x.unsqueeze(1)
-        print(x.shape)
+        #print(x.shape)
         conv_layer_1 = self.convLayer1(x)
-        print(conv_layer_1.shape)
+        #print(conv_layer_1.shape)
         downsample1 = self.downSample1(conv_layer_1)
-        print(downsample1.shape)
+        #print(downsample1.shape)
         downsample2 = self.downSample2(downsample1)
-        print(downsample2.shape)
+        #print(downsample2.shape)
         downsample3 = self.downSample3(downsample2)  # (B, 1, F, T)
-        print(downsample3.shape)
+        #print(downsample3.shape)
         if x.shape[0] > 1:
             output = torch.mean(torch.squeeze(downsample3), dim=-1) # (B F)
         else:
             output = torch.mean(downsample3, dim=-1)
-        print(output.shape)
+        #print(output.shape)
+        output = rearrange(output, 'b c f -> b (c f)')
         output = self.feedforward(output)
-
+        return output
+    
 if __name__ == '__main__':
     # Non exhaustive test for MaskCycleGAN-VC models
 

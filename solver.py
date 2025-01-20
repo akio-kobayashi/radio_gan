@@ -63,12 +63,12 @@ class LitGAN(pl.LightningModule):
         self.discriminator_NH2 = Discriminator(input_shape=config['input_shape'],
                                               residual_in_channels=config['residual_in_channels']).to(self.device)
 
-        # speaker classifiler
+        # speaker classifier
         self.speaker_classifier = AuxDiscriminator(input_shape=config['input_shape'],
                                                    residual_in_channels=config['residual_in_channels'], 
                                                    output_class=config['num_speakers'])
-        # DF/NH classifiler
-        self.df_nh_classifiler = AuxDiscriminator(input_shape=config['input_shape'],
+        # DF/NH classifier
+        self.df_nh_classifier = AuxDiscriminator(input_shape=config['input_shape'],
                                                   residual_in_channels=config['residual_in_channels'], 
                                                   output_class=2)
         self.lambda_speaker = config['lambda_speaker']
@@ -88,7 +88,7 @@ class LitGAN(pl.LightningModule):
             self.discriminator_DF2.eval()
             self.discriminator_NH2.eval()
             self.speaker_classifier.train()
-            self.df_nh_classifiler.train()
+            self.df_nh_classifier.train()
         else:
             self.generator_DF2NH.eval()
             self.generator_NH2DF.eval()
@@ -97,7 +97,7 @@ class LitGAN(pl.LightningModule):
             self.discriminator_DF2.train()
             self.discriminator_NH2.train()
             self.speaker_classifier.eval()
-            self.df_nh_classifiler.eval()
+            self.df_nh_classifier.eval()
 
     def compute_discriminator_loss(self, d_real_df, d_fake_df, d_cycled_df, d_real_df2, 
                                    d_real_nh, d_fake_nh, d_cycled_nh, d_real_nh2, valid=False):
@@ -253,10 +253,10 @@ class LitGAN(pl.LightningModule):
         logits_fake_df = self.df_nh_classifier(fake_df)
         logits_cycle_df = self.df_nh_classifier(cycle_df)
         logits_ident_df = self.df_nh_classifier(ident_df)
-        loss_real_df = F.cross_entropy(logits_real_df, torch.fulllike(spk_df, 1))
-        loss_fake_df = F.cross_entropy(logits_fake_df, torch.fulllike(spk_df, 1))
-        loss_cycle_df = F.cross_entropy(logits_cycle_df, torch.fulllike(spk_df, 1))
-        loss_ident_df = F.cross_entropy(logits_ident_df, torch.fulllike(spk_df, 1))
+        loss_real_df = F.cross_entropy(logits_real_df, torch.full_like(spk_df, 1))
+        loss_fake_df = F.cross_entropy(logits_fake_df, torch.full_like(spk_df, 1))
+        loss_cycle_df = F.cross_entropy(logits_cycle_df, torch.full_like(spk_df, 1))
+        loss_ident_df = F.cross_entropy(logits_ident_df, torch.full_like(spk_df, 1))
         df_loss = loss_real_df + loss_fake_df + loss_cycle_df + loss_ident_df
         if valid is True:
             d['valid_deaf_loss'] = df_loss
@@ -267,10 +267,10 @@ class LitGAN(pl.LightningModule):
         logits_fake_nh = self.df_nh_classifier(fake_nh)
         logits_cycle_nh = self.df_nh_classifier(cycle_nh)
         logits_ident_nh = self.df_nh_classifier(ident_nh)
-        loss_real_nh = F.cross_entropy(logits_real_nh, torch.fulllike(spk_nh, 0))
-        loss_fake_nh = F.cross_entropy(logits_fake_nh, torch.fulllike(spk_nh, 0))
-        loss_cycle_nh = F.cross_entropy(logits_cycle_nh, torch.fulllike(spk_nh, 0))
-        loss_ident_nh = F.cross_entropy(logits_ident_nh, torch.fulllike(spk_nh, 0))
+        loss_real_nh = F.cross_entropy(logits_real_nh, torch.full_like(spk_nh, 0))
+        loss_fake_nh = F.cross_entropy(logits_fake_nh, torch.full_like(spk_nh, 0))
+        loss_cycle_nh = F.cross_entropy(logits_cycle_nh, torch.full_like(spk_nh, 0))
+        loss_ident_nh = F.cross_entropy(logits_ident_nh, torch.full_like(spk_nh, 0))
         nh_loss = loss_real_nh + loss_fake_nh + loss_cycle_nh + loss_ident_nh
         if valid is True:
             d['valid_normal_loss'] = nh_loss
@@ -293,7 +293,7 @@ class LitGAN(pl.LightningModule):
         opt_g, opt_d = self.optimizers()
 
         # Generator step
-        self.toggle_optimizers(opt_g)
+        self.toggle_optimizer(opt_g)
         self.toggle_training_mode(generator=True)
 
         fake_nh = self.forward(real_df, mask_df)
@@ -344,7 +344,7 @@ class LitGAN(pl.LightningModule):
 
         # Discriminator
         self.toggle_training_mode(generator=False)
-        self.toggle_optimizers(opt_d)
+        self.toggle_optimizer(opt_d)
 
         d_real_DF = self.discriminator_DF(real_df)
         d_real_NH = self.discriminator_NH(real_nh)
@@ -371,7 +371,7 @@ class LitGAN(pl.LightningModule):
         self.untoggle_optimizer(opt_d)
 
         #update scheduler using self.current_epoch
-        for sch in self.schedulers():
+        for sch in self.lr_schedulers():
             sch.step()
 
         # return nothing becuase of manual updates   
@@ -398,7 +398,7 @@ class LitGAN(pl.LightningModule):
         self.discriminator_DF2.eval()
         self.discriminator_NH2.eval()
         self.speaker_classifier.eval()
-        self.df_nh_classifiler.eval()
+        self.df_nh_classifier.eval()
 
         # Forward pass for Generator
         with torch.no_grad():  # Disable gradient computation for validation

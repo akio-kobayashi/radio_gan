@@ -56,7 +56,7 @@ class SpeechDataset(torch.utils.data.Dataset):
 
     def get_range(self, melspec):
         total_frames = melspec.shape[-1]
-        assert total_frames >= self.n_frames
+        #assert total_frames >= self.n_frames
         start = np.random.randint(total_frames - self.n_frames + 1)
         end = start + self.n_frames
 
@@ -82,11 +82,19 @@ class SpeechDataset(torch.utils.data.Dataset):
 
         nh_mel = torch.load(row_nh['melspec'])
         nh_mel = (nh_mel.to(self.device) - self.mean)/self.var
+        if nh_mel.shape[-1] < self.n_frames:
+            nh_mel = torch.cat([nh_mel, torch.zeros(nh_mel.shape[0], nh_mel.shape[-2],
+                                                    self.n_frames - nh_mel.shape[-1],
+                                                    device=nh_mel.device)], dim=-1)
         nh_mel_data, nh_mask = self.prepare_data(nh_mel)
         nh_speaker = self.spk2id[row_nh['speaker']]
 
         df_mel = torch.load(row_df['melspec'])
         df_mel = (df_mel.to(self.device) - self.mean)/self.var
+        if df_mel.shape[-1] < self.n_frames:
+            df_mel = torch.cat([df_mel, torch.zeros(df_mel.shape[0], df_mel.shape[-2],
+                                                    self.n_frames - df_mel.shape[-1],
+                                                    device=df_mel.device)], dim=-1)
         df_mel_data, df_mask = self.prepare_data(df_mel)
         df_speaker = self.spk2id[row_df['speaker']]
 
