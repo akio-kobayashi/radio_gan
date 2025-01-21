@@ -7,6 +7,7 @@ import torch.utils.data as dat
 import torch.multiprocessing as mp
 from speech_dataset import SpeechDataset
 import speech_dataset
+from callback import SaveEveryNEpochs
 from argparse import ArgumentParser
 import yaml
 import warnings
@@ -46,14 +47,16 @@ def main(args, config:dict):
                                    collate_fn=speech_dataset.data_processing
     )
 
+    save_callback = SaveEveryNEpochs(config)
     callbacks = [
-        pl.callbacks.ModelCheckpoint( **config['checkpoint'])
+        #pl.callbacks.ModelCheckpoint( **config['checkpoint'])
+        save_callback
     ]
     logger = TensorBoardLogger(**config['logger'])
 
     trainer = pl.Trainer( callbacks=callbacks,
                           logger=logger,
-                          check_val_every_n_epoch=10,
+                          #check_val_every_n_epoch=10,
                           **config['trainer'] )
     trainer.fit(model=model, ckpt_path=args.checkpoint, 
                 train_dataloaders=train_loader, val_dataloaders=valid_loader)
