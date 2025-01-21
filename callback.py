@@ -10,11 +10,12 @@ class SaveEveryNEpochs(Callback):
         os.makedirs(self.save_dir, exist_ok=True)
         self.template = config['checkpoint']['filename']
                                      
-    def on_epoch_end(self, trainer, pl_module):
+    def on_train_epoch_end(self, trainer, pl_module):
         epoch = trainer.current_epoch
+        step = trainer.global_step
         filename = eval(f'f"""{self.template}"""')
         if (epoch + 1) % self.every_n_epochs == 0:
             save_path = os.path.join(self.save_dir, filename+".ckpt")
             trainer.save_checkpoint(save_path)
             print(f"Checkpoint saved at: {save_path}")
-            
+       # print("callback passed")
