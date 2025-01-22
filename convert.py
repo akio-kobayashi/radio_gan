@@ -29,7 +29,7 @@ def main(args, config:dict):
 
     df = pd.read_csv(args.csv)
     for index, row in df.iterrows():
-        mel = torch.load(df['melspec']).to(device)
+        mel = torch.load(df['noisy']).to(device)
         mel = (mel - mean)/var
         original_length = mel.shape[-1]
         split_mel = S.split_and_reshape(mel, config['num_frames'])
