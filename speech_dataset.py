@@ -14,8 +14,7 @@ import bin.compute_features as C
 
 class SpeechDataset(torch.utils.data.Dataset):
 
-    def __init__(self, csv_path:str, spk_path:str, 
-                 stat_path:str, n_frames=128, max_mask_len=25, shuffle_data=True) -> None:
+    def __init__(self, csv_path:str, stat_path:str, n_frames=128, max_mask_len=25, shuffle_data=True) -> None:
         super().__init__()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
@@ -27,37 +26,17 @@ class SpeechDataset(torch.utils.data.Dataset):
         self.mean = rearrange(self.mean, ' b (f c) -> b f c', c=1)
         self.var = rearrange(self.var, ' b (f c) -> b f c', c=1)
         self.df = pd.read_csv(csv_path)
-        self.df_nh = self.df[self.df['hearing'] == 'NH']
-        self.df_df = self.df[self.df['hearing'] == 'DF']
+        self.df_clean = self.df[['key', 'clean']]
+        self.df_noisy = self.df[['key', 'noisy']]
 
-        self.data_length = max(len(self.df_nh), len(self.df_df))
-        self.shuffle_data=shuffle_data
-        if self.shuffle_data:
-            self.shuffle()
-
-        self.spk2id={}
-        self.spk2id['<UNK>'] = 0
-        with open(spk_path, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                ary = line.strip().split()
-                if ary[0] != "<UNK>" or ary[0] != "<unk>":
-                    self.spk2id[ary[0]] = int(ary[1])
+        self.data_length = max(len(self.df_clean), len(self.df_noisy))
 
     def __len__(self) -> int:
         return self.data_length
 
-    def shuffle(self):
-        if self.shuffle_data:
-            replace=True if len(self.df_nh) < self.data_length else False       
-            self.df_nh = self.df_nh.sample(n=self.data_length, replace=replace, ignore_index=True).reset_index(drop=True)
-            replace=True if len(self.df_df) < self.data_length else False       
-            self.df_df = self.df_df.sample(n=self.data_length, replace=replace, ignore_index=True).reset_index(drop=True)
-            assert len(self.df_nh) == len(self.df_df)
             
     def get_range(self, melspec):
         total_frames = melspec.shape[-1]
-        #assert total_frames >= self.n_frames
         start = np.random.randint(total_frames - self.n_frames + 1)
         end = start + self.n_frames
 
@@ -78,59 +57,52 @@ class SpeechDataset(torch.utils.data.Dataset):
         return ranged, torch.from_numpy(mask).to(self.device)
 
     def __getitem__(self, idx:int):
-        row_nh = self.df_nh.iloc[idx]
-        row_df = self.df_df.iloc[idx]
+        row_clean = self.df_clean.iloc[idx]
+        row_noisy = self.df_noisy.iloc[idx]
 
-        nh_mel = torch.load(row_nh['melspec'])
-        nh_mel = (nh_mel.to(self.device) - self.mean)/self.var
-        if nh_mel.shape[-1] < self.n_frames:
-            nh_mel = torch.cat([nh_mel, torch.zeros(nh_mel.shape[0], nh_mel.shape[-2],
-                                                    self.n_frames - nh_mel.shape[-1],
-                                                    device=nh_mel.device)], dim=-1)
-        nh_mel_data, nh_mask = self.prepare_data(nh_mel)
-        nh_speaker = self.spk2id[row_nh['speaker']]
+        mel_clean = torch.load(row_clean['clean'])
+        mel_clean = (mel_clean.to(self.device) - self.mean)/self.var
+        if mel_clean.shape[-1] < self.n_frames:
+            mel_clean = torch.cat([mel_clean, torch.zeros(mel_clean.shape[0], mel_clean.shape[-2],
+                                                          self.n_frames - mel_clean.shape[-1],
+                                                          device=mel_clean.device)], dim=-1)
+        mel_clean_data, mask_clean = self.prepare_data(mel_clean)
 
-        df_mel = torch.load(row_df['melspec'])
-        df_mel = (df_mel.to(self.device) - self.mean)/self.var
-        if df_mel.shape[-1] < self.n_frames:
-            df_mel = torch.cat([df_mel, torch.zeros(df_mel.shape[0], df_mel.shape[-2],
-                                                    self.n_frames - df_mel.shape[-1],
-                                                    device=df_mel.device)], dim=-1)
-        df_mel_data, df_mask = self.prepare_data(df_mel)
-        df_speaker = self.spk2id[row_df['speaker']]
+        mel_noisy = torch.load(row_noisy['melspec'])
+        mel_noisy = (mel_noisy.to(self.device) - self.mean)/self.var
+        if mel_noisy.shape[-1] < self.n_frames:
+            mel_noisy = torch.cat([mel_noisy, torch.zeros(mel_noisy.shape[0], mel_noisy.shape[-2],
+                                                          self.n_frames - mel_noisy.shape[-1],
+                                                          device=mel_noisy.device)], dim=-1)
+        mel_noisy_data, mask_noisy = self.prepare_data(mel_noisy)
 
-        return nh_mel_data, nh_mask, nh_speaker, df_mel_data, df_mask, df_speaker
+        return mel_clean_data, mask_clean, mel_noisy_data, mask_noisy
     
 def data_processing(data):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
-    nh_data, nh_mask, nh_spk = [], [], []
-    df_data, df_mask, df_spk = [], [], []
+    data_clean, mask_clean = [], []
+    data_noisy, mask_noisy = [], []
+    
+    for _d_clean, _m_clean, _d_noisy, _m_noisy in data:
+        data_clean.append(_d_clean)
+        mask_clean.append(_m_clean)
 
-    for _nh_d, _nh_m, _nh_s, _df_d, _df_m, _df_s in data:
-        nh_data.append(_nh_d)
-        nh_mask.append(_nh_m)
-        nh_spk.append(_nh_s)
+        data_noisy.append(_d_noisy)
+        mask_noisy.append(_m_noisy)
 
-        df_data.append(_df_d)
-        df_mask.append(_df_m)
-        df_spk.append(_df_s)
+    data_clean = nn.utils.rnn.pad_sequence(data_clean, batch_first=True)
+    mask_clean = nn.utils.rnn.pad_sequence(mask_clean, batch_first=True)
+    data_noisy = nn.utils.rnn.pad_sequence(data_noisy, batch_first=True)
+    mask_noisy = nn.utils.rnn.pad_sequence(mask_noisy, batch_first=True)
+    data_clean = data_clean.squeeze()
+    mask_clean = mask_clean.squeeze()
+    data_noisy = data_noisy.squeeze()
+    mask_noisy = mask_noisy.squeeze()
+    if data_clean.dim() < 3:
+        data_clean = data_clean.unsqueeze(0)
+        mask_clean = mask_clean.unsqueeze(0)
+        data_noisy = data_noisy.unsqueeze(0)
+        mask_noisy = mask_noisy.unsqueeze(0)
 
-    nh_spk = torch.from_numpy(np.array(nh_spk)).to(device)
-    df_spk = torch.from_numpy(np.array(df_spk)).to(device)
-
-    nh_data = nn.utils.rnn.pad_sequence(nh_data, batch_first=True)
-    nh_mask = nn.utils.rnn.pad_sequence(nh_mask, batch_first=True)
-    df_data = nn.utils.rnn.pad_sequence(df_data, batch_first=True)
-    df_mask = nn.utils.rnn.pad_sequence(df_mask, batch_first=True)
-    nh_data = nh_data.squeeze()
-    nh_mask = nh_mask.squeeze()
-    df_data = df_data.squeeze()
-    df_mask = df_mask.squeeze()
-    if nh_data.dim() < 3:
-        nh_data = nh_data.unsqueeze(0)
-        nh_mask = nh_mask.unsqueeze(0)
-        df_data = df_data.unsqueeze(0)
-        df_mask = df_mask.unsqueeze(0)
-
-    return nh_data, nh_mask, nh_spk, df_data, df_mask, df_spk
+    return data_clean, mask_clean, data_noisy, mask_noisy
